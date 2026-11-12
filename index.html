@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cirurgias em Jogo</title>
+<meta name="theme-color" content="#0b2545">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cirurgias">
+<style>
+/* Layout: uma coluna na largura do celular, sobre papel milimetrado de ECG; a barra de progresso é um traçado. */
+:root{
+  --navy:#0b2545; --navy2:#13315c; --red:#c8102e; --red-soft:#fde8eb;
+  --paper:#fbf7f4; --grid:#f3d9dd; --ink:#16202e; --muted:#5b6474;
+  --ok:#137a4b; --ok-soft:#e3f4ea; --bad:#b3122a; --bad-soft:#fde6e9;
+  --card:#ffffff; --line:#e6e0dc;
+  --b1:#c8102e; --b2:#d9480f; --b3:#1864ab; --b4:#7048e8; --b5:#0b7285; --b6:#a61e4d; --b7:#2b8a3e;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  color:var(--ink); background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:20px 20px; min-height:100vh; -webkit-tap-highlight-color:transparent;
+}
+[hidden]{display:none!important}
+.wrap{max-width:560px;margin:0 auto;padding:0 14px 40px}
+.top{background:var(--navy);color:#fff;margin:0 -14px 16px;padding:18px 18px 16px;border-bottom:4px solid var(--red)}
+.top .kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8ec5ff;font-weight:700}
+.top h1{margin:4px 0 2px;font-size:28px;line-height:1.05;letter-spacing:-.01em;font-weight:800}
+.top h1 span{color:#ff6b7f}
+.top .meta{font-size:12.5px;color:#c9d6e8}
+.btn-home{float:right;background:transparent;border:1px solid #4d6a92;color:#fff;border-radius:10px;padding:6px 10px;font:inherit;font-size:13px;cursor:pointer}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--navy2);margin:22px 0 10px}
+.modes{display:grid;gap:10px}
+.mode{display:flex;gap:14px;align-items:center;text-align:left;width:100%;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--red);border-radius:14px;padding:14px;font:inherit;color:inherit;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.03)}
+.mode:active{transform:scale(.99)}
+.mode .ico{flex:0 0 44px;height:44px;border-radius:12px;background:var(--red-soft);display:grid;place-items:center}
+.mode .ico svg{width:26px;height:26px;stroke:var(--red);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.mode b{display:block;font-size:17px}
+.mode small{color:var(--muted);font-size:13.5px}
+.mode .best{margin-left:auto;font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.mode.m2{border-left-color:var(--navy2)} .mode.m2 .ico{background:#e5edf8} .mode.m2 .ico svg{stroke:var(--navy2)}
+.mode.m3{border-left-color:var(--ok)} .mode.m3 .ico{background:var(--ok-soft)} .mode.m3 .ico svg{stroke:var(--ok)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:7px 12px;font:inherit;font-size:13.5px;color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:#fff}
+.chip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.note{font-size:13px;color:var(--muted);line-height:1.45;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin-top:18px}
+/* traçado */
+.trace{background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px 8px;margin-bottom:12px}
+.trace svg{display:block;width:100%;height:54px}
+.trace .base{stroke:#e2b6bd;stroke-width:1.2;stroke-dasharray:3 4;fill:none}
+.trace .ecg{stroke:var(--red);stroke-width:2.2;fill:none;stroke-linejoin:round;stroke-linecap:round}
+.trace .row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);padding:0 2px}
+/* pergunta */
+.qcard{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 2px 10px rgba(11,37,69,.05)}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;border-radius:6px;padding:3px 8px;margin-bottom:10px}
+.ctx{background:#f4f7fb;border-left:4px solid var(--navy2);border-radius:8px;padding:10px 12px;font-size:15px;line-height:1.45;margin-bottom:12px}
+.qtext{font-size:18px;line-height:1.35;font-weight:700;margin:0 0 14px}
+.opts{display:grid;gap:9px}
+.opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;font:inherit;font-size:15.5px;line-height:1.35;color:var(--ink);cursor:pointer}
+.opt .l{flex:0 0 26px;height:26px;border-radius:8px;background:#eef1f5;display:grid;place-items:center;font-weight:800;font-size:13px;color:var(--navy2)}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)} .opt.right .l{background:var(--ok);color:#fff}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)} .opt.wrong .l{background:var(--bad);color:#fff}
+.opt.dim{opacity:.55}
+.fb{margin-top:14px;border-radius:12px;padding:12px 14px;font-size:15px;line-height:1.45}
+.fb.ok{background:var(--ok-soft);border:1px solid #b8e0c8}
+.fb.no{background:var(--bad-soft);border:1px solid #f4b9c2}
+.fb b{display:block;margin-bottom:3px}
+.fb .ref{display:block;margin-top:8px;font-size:12.5px;color:var(--muted)}
+.actions{display:flex;gap:10px;margin-top:14px}
+.primary,.ghost{flex:1;border-radius:12px;padding:13px 14px;font:inherit;font-size:16px;font-weight:700;cursor:pointer}
+.primary{background:var(--red);color:#fff;border:0}
+.ghost{background:#fff;color:var(--navy);border:1.5px solid var(--line)}
+/* cartões */
+.cbar{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;color:var(--muted);margin-bottom:10px;gap:10px;flex-wrap:wrap}
+.cbar label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.flip{perspective:1200px;cursor:pointer;user-select:none}
+.flip .in{position:relative;min-height:340px;transition:transform .45s;transform-style:preserve-3d}
+.flip.on .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;overflow:auto;box-shadow:0 2px 12px rgba(11,37,69,.07)}
+.face.back{transform:rotateY(180deg);background:var(--navy);color:#fff;border-color:var(--navy)}
+.face .big{margin:auto 0;font-size:26px;font-weight:800;line-height:1.15;letter-spacing:-.01em}
+.face.back .txt{margin:auto 0;font-size:16.5px;line-height:1.5}
+.face .hint{font-size:12.5px;color:var(--muted)}
+.face.back .hint{color:#9fb6d6}
+.known{font-size:12px;font-weight:700;color:var(--ok)}
+/* resultado */
+.score{font-size:64px;font-weight:800;line-height:1;color:var(--navy);margin:8px 0}
+.score small{font-size:26px;color:var(--muted)}
+.verdict{font-size:17px;font-weight:700;margin-bottom:12px}
+.review{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.review li{background:#fff;border:1px solid var(--line);border-left:4px solid var(--bad);border-radius:10px;padding:10px 12px;font-size:14.5px;line-height:1.4}
+.review .ans{display:block;margin-top:5px;color:var(--ok);font-weight:600}
+.foot{margin-top:28px;font-size:11.5px;color:var(--muted);text-align:center;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <button class="btn-home" id="home-btn" hidden>Início</button>
+    <div class="kicker">Atlas visual · ICSC20 · UFBA 2026.2</div>
+    <h1>Cirurgias <span>em Jogo</span></h1>
+    <div class="meta">Revisão das cirurgias cardíacas do adulto e dos cuidados de fisioterapia</div>
+  </header>
+
+  <!-- INÍCIO -->
+  <section id="home">
+    <div class="modes">
+      <button class="mode" id="go-quiz">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M9 9a3 3 0 1 1 4 2.8c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="18" r=".6"/><rect x="3" y="3" width="18" height="18" rx="4"/></svg></span>
+        <span><b>Quiz rápido</b><small id="quiz-sub">12 perguntas sorteadas</small></span>
+        <span class="best" id="best-quiz"></span>
+      </button>
+      <button class="mode m2" id="go-cards">
+        <span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="14" height="14" rx="3"/><path d="M7 3h11a3 3 0 0 1 3 3v11"/></svg></span>
+        <span><b>Cartões de estudo</b><small id="cards-sub">Um por prancha do atlas</small></span>
+        <span class="best" id="best-cards"></span>
+      </button>
+      <button class="mode m3" id="go-case">
+        <span class="ico"><svg viewBox="0 0 24 24"><path d="M2 12h4l2-5 3 10 3-7 2 2h6"/></svg></span>
+        <span><b>Plantão na UTI</b><small>7 leitos, 9 decisões clínicas</small></span>
+        <span class="best" id="best-case"></span>
+      </button>
+    </div>
+    <h2>Filtrar por bloco</h2>
+    <div class="chips" id="chips"></div>
+    <div class="note">O filtro vale para o quiz e para os cartões. O plantão percorre todas as cirurgias. Seu progresso fica salvo só neste aparelho. Não vale nota.</div>
+    <div class="foot">Profa. Dra. Séres Costa de Souza Nascimento<br>Fisioterapia Aplicada à Cardiologia · IMRS · UFBA</div>
+  </section>
+
+  <!-- PERGUNTA (quiz e plantão) -->
+  <section id="play" hidden>
+    <div class="trace">
+      <svg viewBox="0 0 600 60" preserveAspectRatio="none" aria-hidden="true"><path class="base" d="M0 40H600"/><path class="ecg" id="ecg" d=""/></svg>
+      <div class="row"><span id="p-count"></span><span id="p-score"></span></div>
+    </div>
+    <div class="qcard">
+      <span class="tag" id="p-tag"></span>
+      <div class="ctx" id="p-ctx" hidden></div>
+      <p class="qtext" id="p-q"></p>
+      <div class="opts" id="p-opts"></div>
+      <div id="p-fb" hidden></div>
+      <div class="actions"><button class="primary" id="p-next" hidden>Próxima</button></div>
+    </div>
+  </section>
+
+  <!-- CARTÕES -->
+  <section id="cards" hidden>
+    <div class="cbar">
+      <span id="c-count"></span>
+      <label><input type="checkbox" id="c-only"> Só os que ainda não sei</label>
+    </div>
+    <div class="flip" id="c-flip" role="button" tabindex="0" aria-label="Virar cartão">
+      <div class="in">
+        <div class="face front"><span class="tag" id="c-tag"></span><div class="big" id="c-front"></div><div class="hint">Toque para virar <span class="known" id="c-known"></span></div></div>
+        <div class="face back"><div class="txt" id="c-back"></div><div class="hint" id="c-ref"></div></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="c-again">Rever depois</button>
+      <button class="primary" id="c-ok">Já sei</button>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="c-prev">‹ Anterior</button>
+      <button class="ghost" id="c-shuf">Embaralhar</button>
+      <button class="ghost" id="c-nextc">Próximo ›</button>
+    </div>
+  </section>
+
+  <!-- RESULTADO -->
+  <section id="result" hidden>
+    <div class="qcard">
+      <span class="tag" id="r-kind" style="background:var(--navy)"></span>
+      <div class="score" id="r-score"></div>
+      <div class="verdict" id="r-verdict"></div>
+      <div class="trace"><svg viewBox="0 0 600 60" preserveAspectRatio="none" aria-hidden="true"><path class="base" d="M0 40H600"/><path class="ecg" id="r-trace" d=""/></svg></div>
+      <div id="r-review-wrap"><h2>Para revisar</h2><ul class="review" id="r-review"></ul></div>
+      <div class="actions"><button class="ghost" id="r-home">Início</button><button class="primary" id="r-again">Jogar de novo</button></div>
+    </div>
+  </section>
+</div>
+
+<script>
+// Conteúdo do app — baseado exclusivamente no Atlas Visual de Cirurgias Cardíacas (ICSC20, UFBA 2026.2).
+// Em cada questão, o[0] é a resposta correta (as opções são embaralhadas na tela).
+// p = número da prancha no atlas (1 a 30).
+const BLOCOS = [
+  { id: 1, nome: "Fundamentos", sub: "Esternotomia, CEC e cardioplegia" },
+  { id: 2, nome: "Revascularização", sub: "Pontes e enxertos" },
+  { id: 3, nome: "Valva aórtica", sub: "SAVR, TAVI e Ross" },
+  { id: 4, nome: "Valva mitral", sub: "Balão, comissurotomia, troca, plastia, TEER" },
+  { id: 5, nome: "Aorta torácica", sub: "Da raiz ao arco e à descendente" },
+  { id: 6, nome: "Ventrículo esquerdo", sub: "Aneurisma, Cooley e Dor" },
+  { id: 7, nome: "Fisioterapia", sub: "Avaliar antes de mobilizar" }
+];
+
+const Q = [
+  // ---------- Bloco 1: Fundamentos ----------
+  { b: 1, p: 1, q: "Na esternotomia mediana, qual consequência interessa mais diretamente à fisioterapia respiratória?",
+    o: ["Dor e limitação da expansão torácica, com maior risco de atelectasia",
+        "Paralisia definitiva do diafragma",
+        "Aumento da complacência pulmonar",
+        "Perda da tosse reflexa em todos os pacientes"],
+    e: "O atlas lista dor e limitação da expansão torácica, redução da mecânica ventilatória, maior risco de atelectasia e necessidade de proteger o esterno no pós-operatório." },
+  { b: 1, p: 2, q: "No circuito de CEC, qual componente faz o papel do pulmão?",
+    o: ["Oxigenador de membrana", "Reservatório venoso", "Trocador de calor", "Filtro arterial"],
+    e: "O oxigenador de membrana adiciona O₂ e remove CO₂. O trocador de calor controla a temperatura e o filtro retém microêmbolos." },
+  { b: 1, p: 2, q: "Qual é a sequência correta do sangue no circuito de CEC?",
+    o: ["Drenagem venosa → reservatório → bomba → oxigenador → trocador de calor → filtro → aorta",
+        "Aorta → oxigenador → bomba → reservatório → veias cavas",
+        "Drenagem venosa → filtro → oxigenador → reservatório → bomba → aorta",
+        "Átrio esquerdo → bomba → trocador de calor → veias pulmonares"],
+    e: "O sangue venoso sai pelas cavas/átrio direito, é armazenado no reservatório, impulsionado pela bomba, oxigenado, tem a temperatura ajustada, é filtrado e volta pela cânula na aorta ascendente." },
+  { b: 1, p: 2, q: "Qual é o papel da heparina e da protamina na CEC?",
+    o: ["A heparina impede a coagulação no circuito; a protamina neutraliza a heparina ao final",
+        "A protamina impede a coagulação no circuito; a heparina reverte o efeito ao final",
+        "As duas são cardioplégicas e param o coração",
+        "A heparina é usada só depois da CEC, para evitar trombose da ponte"],
+    e: "Heparina antes da canulação para o sangue não coagular no circuito. Protamina na saída da CEC para neutralizá-la e reduzir o sangramento." },
+  { b: 1, p: 2, q: "Segundo o atlas, em que período o risco de atelectasia e pneumonia pós-CEC é maior?",
+    o: ["Nas primeiras 48–72 horas", "Somente após o 10º dia", "Apenas depois da alta hospitalar", "Só na fase ambulatorial"],
+    e: "A CEC provoca resposta inflamatória e disfunção pulmonar (colapso alveolar, menor complacência, piora da troca gasosa). O risco é maior nas primeiras 48–72 h." },
+  { b: 1, p: 3, q: "A cardioplegia é uma solução fria rica em ____ que para o coração em ____.",
+    o: ["Potássio; diástole", "Cálcio; sístole", "Sódio; sístole", "Magnésio; fibrilação"],
+    e: "A solução rica em potássio para o coração em diástole, a forma mais segura e econômica: reduz o consumo de O₂ e protege o miocárdio durante a isquemia." },
+  { b: 1, p: 3, q: "Por que o fisioterapeuta deve ler no prontuário o tempo de pinçamento aórtico e de CEC?",
+    o: ["Tempos maiores associam-se a mais disfunção miocárdica, complicações e recuperação funcional mais lenta",
+        "Tempos maiores permitem deambular no mesmo dia",
+        "Tempos maiores reduzem a resposta inflamatória",
+        "Esses tempos só interessam ao anestesista"],
+    e: "Quanto maiores os tempos de pinçamento e de CEC, maior o risco de baixo débito e de complicações, e mais lenta tende a ser a recuperação. Isso muda o ritmo da progressão." },
+  { b: 1, p: 4, q: "Na saída da CEC, o coração não sustenta a circulação. Que suportes o atlas cita?",
+    o: ["Inotrópicos (dobutamina, milrinona) e balão intra-aórtico",
+        "Mais cardioplegia e pinçamento da aorta",
+        "Heparina em dose dobrada",
+        "Hipotermia profunda contínua"],
+    e: "Inotrópicos aumentam a força de contração. O balão intra-aórtico reduz a pós-carga e melhora a perfusão das coronárias." },
+  { b: 1, p: 4, q: "Quais achados sugerem baixo débito cardíaco no pós-operatório?",
+    o: ["Hipotensão, extremidades frias, oligúria e lactato elevado",
+        "Hipertensão, extremidades quentes e poliúria",
+        "Bradicardia isolada com lactato normal",
+        "Febre baixa e tosse produtiva"],
+    e: "São os sinais de baixo débito que o atlas manda vigiar. Com eles, o paciente tolera mal o esforço e a mobilização precisa esperar." },
+
+  // ---------- Bloco 2: Revascularização ----------
+  { b: 2, p: 5, q: "O que acontece com a placa aterosclerótica na revascularização do miocárdio?",
+    o: ["Permanece no vaso original; a ponte cria um caminho que contorna a obstrução",
+        "É retirada pelo cirurgião antes de fazer a ponte",
+        "É dissolvida pela cardioplegia",
+        "É usada como parte do enxerto"],
+    e: "A ponte não remove a placa. A anastomose distal é feita depois da lesão e o sangue passa a chegar ao miocárdio por um novo caminho." },
+  { b: 2, p: 6, q: "Qual enxerto é a primeira escolha, especialmente para a descendente anterior (DA)?",
+    o: ["Artéria torácica interna (mamária)", "Veia safena magna", "Artéria radial", "Veia cefálica"],
+    e: "A mamária tem a maior durabilidade (≈ 90–95% pérvia em 10 anos, segundo o atlas) e é preferida para a DA." },
+  { b: 2, p: 6, q: "Qual enxerto é 'livre', retirado da perna e conectado à aorta ascendente?",
+    o: ["Veia safena magna", "Mamária esquerda", "Artéria radial esquerda", "Artéria subclávia"],
+    e: "A safena é um enxerto livre: sai da aorta ascendente e chega à coronária depois da obstrução. A mamária, ao contrário, continua presa à subclávia." },
+  { b: 2, p: 6, q: "Antes de retirar a artéria radial, o que precisa ser avaliado?",
+    o: ["A circulação da mão (teste de Allen)", "A espirometria", "O escore de Wilkins", "A força do quadríceps"],
+    e: "Sem a radial, a mão depende da ulnar. Por isso se testa a circulação colateral antes da retirada." },
+  { b: 2, p: 6, q: "Retirada da safena: o que o fisioterapeuta deve observar no membro inferior?",
+    o: ["Dor, edema, hematoma e alteração de sensibilidade",
+        "Somente a cicatriz do esterno",
+        "Sinais de isquemia medular",
+        "Sopro carotídeo"],
+    e: "O local de retirada do enxerto também é ferida operatória. Ele pode limitar a marcha e a mobilização." },
+  { b: 2, p: 7, q: "Na revascularização sem CEC (off-pump/OPCAB):",
+    o: ["O coração continua batendo e as anastomoses são feitas com estabilização local",
+        "O coração é parado com cardioplegia",
+        "Não há esternotomia",
+        "A máquina de CEC fica em espera ligada ao paciente"],
+    e: "Sem CEC não há cardioplegia nem coração parado. A esternotomia continua lá, e a região da anastomose é estabilizada por sucção." },
+  { b: 2, p: 7, q: "Qual é a mensagem prática dos estudos ROOBY (2009) e CORONARY (2016)?",
+    o: ["Sem CEC não é superior para todos; pode ser útil em casos selecionados, como aorta muito calcificada",
+        "Sem CEC é sempre melhor e substituiu a técnica com CEC",
+        "Com CEC aumentou a mortalidade em 5 anos",
+        "Os estudos proibiram a cirurgia sem CEC"],
+    e: "ROOBY mostrou resultados piores e menor perviedade sem CEC em centros com experiência variável. CORONARY não mostrou diferença importante em desfechos maiores em 5 anos." },
+
+  // ---------- Bloco 3: Valva aórtica ----------
+  { b: 3, p: 8, q: "Na estenose aórtica, qual é a fase crítica e a resposta do VE?",
+    o: ["Sístole; hipertrofia concêntrica por sobrecarga de pressão",
+        "Diástole; dilatação com hipertrofia excêntrica",
+        "Sístole; dilatação com hipertrofia excêntrica",
+        "Diástole; hipertrofia concêntrica"],
+    e: "A valva abre pouco, o VE precisa vencer a resistência na ejeção e a parede engrossa (hipertrofia concêntrica)." },
+  { b: 3, p: 8, q: "Na insuficiência aórtica, qual é a dificuldade essencial?",
+    o: ["CONTER o sangue: há refluxo para o VE na diástole",
+        "EJETAR o sangue: a valva abre pouco na sístole",
+        "Encher o VE através da mitral",
+        "Esvaziar o átrio direito"],
+    e: "A valva não fecha bem, o sangue volta para o VE na diástole, e o VE dilata (hipertrofia excêntrica)." },
+  { b: 3, p: 8, q: "Quais são os sintomas clássicos da estenose aórtica?",
+    o: ["Angina, síncope e dispneia", "Hemoptise, rouquidão e febre", "Claudicação, cianose e edema de face", "Palpitação isolada sem outros sintomas"],
+    e: "É a tríade clássica da estenose aórtica. Por isso sintomas e intolerância ao esforço precisam ser reconhecidos antes de exercitar." },
+  { b: 3, p: 9, q: "Prótese mecânica × biológica: qual afirmação está correta?",
+    o: ["A mecânica dura mais, mas exige anticoagulação contínua (ex.: varfarina)",
+        "A biológica exige anticoagulação vitalícia",
+        "A biológica dura mais que a mecânica",
+        "Nenhuma das duas tem risco de trombose"],
+    e: "Mecânica: > 20–30 anos, maior risco de trombose, anticoagulação contínua. Biológica: ≈ 10–20 anos, menor risco de trombose, geralmente sem anticoagulação prolongada." },
+  { b: 3, p: 10, q: "Na TAVI, o que acontece com a valva aórtica doente?",
+    o: ["Fica no lugar; a prótese é expandida dentro dela e empurra os folhetos para a periferia",
+        "É retirada por aortotomia",
+        "É trocada pela valva pulmonar do paciente",
+        "É reparada com um anel de anuloplastia"],
+    e: "A TAVI não retira a valva nativa. Essa é uma das diferenças centrais em relação à SAVR, em que a valva é removida." },
+  { b: 3, p: 10, q: "Pós-TAVI por via transfemoral: o que o fisioterapeuta prioriza?",
+    o: ["Sítio de punção femoral e vigilância de bradiarritmias e bloqueios",
+        "Precauções esternais rígidas",
+        "Teste de Allen",
+        "Força de membros inferiores por isquemia medular"],
+    e: "Não há esternotomia. O cuidado vai para o local da punção (sangramento, hematoma, perfusão do membro) e para o ritmo: a TAVI pode causar bloqueio AV. Em geral, mobiliza-se nas primeiras 24 h, conforme estabilidade." },
+  { b: 3, p: 9, q: "Por que monitorar o ritmo cardíaco depois de uma troca valvar aórtica cirúrgica (SAVR)?",
+    o: ["Há risco de arritmias e de alterações de condução, como bloqueio AV",
+        "Porque a SAVR é feita sem CEC",
+        "Porque a valva nativa continua no lugar",
+        "Porque a ponte de safena pode ocluir"],
+    e: "A prótese fica no anel aórtico, muito próximo do sistema de condução. O atlas lista arritmias e alterações de condução entre as implicações." },
+  { b: 3, p: 11, q: "O que caracteriza a operação de Ross?",
+    o: ["A valva pulmonar do próprio paciente vai para a posição aórtica, e a via de saída do VD recebe um homoenxerto",
+        "A valva aórtica é transferida para a posição pulmonar",
+        "Uma prótese mecânica é colocada nas duas posições",
+        "Um clip aproxima os folhetos aórticos"],
+    e: "É uma cirurgia em duas posições valvares. Tecido vivo na posição aórtica, sem anticoagulação permanente por causa do autoenxerto." },
+
+  // ---------- Bloco 4: Valva mitral ----------
+  { b: 4, p: 12, q: "Área valvar mitral normal × estenose mitral significativa:",
+    o: ["Normal 4–6 cm²; estenose ≤ 1,5 cm²", "Normal 1–2 cm²; estenose ≤ 0,5 cm²", "Normal 8–10 cm²; estenose ≤ 4 cm²", "Normal 2–3 cm²; estenose ≤ 2,5 cm²"],
+    e: "Na estenose mitral reumática, a fusão das comissuras deixa o orifício em 'boca de peixe', com área ≤ 1,5 cm²." },
+  { b: 4, p: 12, q: "Na estenose mitral, para onde se transmite o aumento de pressão do átrio esquerdo?",
+    o: ["Veias pulmonares → congestão e hipertensão pulmonar → sobrecarga do VD",
+        "Aorta → hipertrofia concêntrica do VE",
+        "Coronárias → infarto",
+        "Veia cava inferior → ascite isolada"],
+    e: "A pressão volta para os pulmões (congestão, dispneia), sobe a pressão pulmonar e, em fases avançadas, o VD sofre." },
+  { b: 4, p: 12, q: "Por que a taquicardia é mal tolerada na estenose mitral?",
+    o: ["Encurta a diástole, e o VE já tem dificuldade de encher pela valva estreita",
+        "Aumenta o refluxo para a aorta",
+        "Reduz a pressão no átrio esquerdo",
+        "Faz a valva calcificar mais rápido"],
+    e: "A estenose mitral dificulta o enchimento do VE, que acontece na diástole. FC alta encurta esse tempo. Daí a monitorização de FC no exercício." },
+  { b: 4, p: 13, q: "Qual é o trajeto do cateter na valvoplastia mitral por balão?",
+    o: ["Veia femoral → átrio direito → punção do septo interatrial → átrio esquerdo → valva mitral",
+        "Artéria femoral → aorta → VE → valva mitral",
+        "Esternotomia → átrio esquerdo",
+        "Veia jugular → VD → artéria pulmonar"],
+    e: "É um acesso venoso com punção transeptal. Sem esternotomia e sem CEC." },
+  { b: 4, p: 13, q: "Qual achado contraindica a valvoplastia mitral por balão?",
+    o: ["Trombo no átrio esquerdo", "Estenose mitral sintomática", "Escore de Wilkins ≤ 8", "Insuficiência mitral ausente"],
+    e: "Os critérios de seleção incluem ausência de trombo no AE, anatomia favorável (Wilkins ≤ 8) e insuficiência mitral no máximo leve." },
+  { b: 4, p: 14, q: "Quando a comissurotomia mitral cirúrgica é indicada no lugar do balão?",
+    o: ["Anatomia desfavorável (Wilkins > 8), trombo no AE ou falta de acesso percutâneo",
+        "Sempre que o paciente for jovem e sem trombo",
+        "Quando há só insuficiência mitral leve e anatomia favorável",
+        "Quando o objetivo é trocar a valva por prótese"],
+    e: "A cirurgia, sob CEC e com atriotomia esquerda, permite tratar também cordas e músculos papilares, preservando a valva nativa." },
+  { b: 4, p: 15, q: "Na troca valvar mitral, por que se tenta preservar o aparelho subvalvar (cordas)?",
+    o: ["Ajuda a manter a função do VE", "Evita a necessidade de CEC", "Dispensa anticoagulação da prótese mecânica", "Impede a fibrilação atrial"],
+    e: "É um dos pontos principais da prancha: a preservação das cordas ajuda a manter a função ventricular." },
+  { b: 4, p: 16, q: "Na plastia mitral, para que serve a anuloplastia?",
+    o: ["Remodelar e estabilizar o anel mitral", "Substituir cordas rompidas", "Retirar o folheto anterior inteiro", "Separar comissuras fundidas"],
+    e: "Cordas alongadas ou rompidas são trocadas por neocordas de PTFE; o segmento prolapsado pode ser ressecado; o anel é estabilizado pela anuloplastia." },
+  { b: 4, p: 16, q: "Na insuficiência mitral degenerativa com expectativa de reparo durável, o que se prefere?",
+    o: ["Plastia mitral, preservando a valva nativa", "Troca por prótese mecânica", "TAVI", "Valvoplastia por balão"],
+    e: "A plastia corrige o mecanismo da insuficiência, não só o anel, e preserva a valva do paciente." },
+  { b: 4, p: 17, q: "O que o TEER (MitraClip) faz?",
+    o: ["Aproxima as bordas dos folhetos com um clip, criando um duplo orifício, sem esternotomia e sem CEC",
+        "Substitui a valva mitral por uma prótese biológica",
+        "Implanta um anel no anel mitral",
+        "Abre comissuras fundidas com um balão"],
+    e: "Não troca a valva nem coloca anel. Reduz a regurgitação; na IM secundária não corrige a cardiomiopatia de base." },
+  { b: 4, p: 17, q: "O que COAPT e MITRA-FR ensinam sobre o TEER?",
+    o: ["A seleção do paciente e a anatomia importam: COAPT mostrou benefício em pacientes bem selecionados; MITRA-FR, não",
+        "Os dois estudos mostraram o mesmo benefício para qualquer paciente",
+        "Os dois proibiram o TEER na IM secundária",
+        "Os estudos compararam TEER com ponte de safena"],
+    e: "Resultados diferentes em populações diferentes: o benefício depende de quem é tratado." },
+
+  // ---------- Bloco 5: Aorta torácica ----------
+  { b: 5, p: 18, q: "Aneurisma × dissecção da aorta:",
+    o: ["Aneurisma é dilatação da parede; dissecção é ruptura da íntima com separação das camadas",
+        "São sinônimos",
+        "Dissecção é dilatação; aneurisma é ruptura da íntima",
+        "A dissecção só ocorre em quem já tem aneurisma"],
+    e: "Podem coexistir, mas a dissecção pode ocorrer sem aneurisma prévio." },
+  { b: 5, p: 18, q: "A dissecção Stanford tipo A:",
+    o: ["Envolve a aorta ascendente e é uma emergência cirúrgica",
+        "Fica restrita à aorta descendente e é sempre tratada só com remédio",
+        "Envolve apenas a aorta abdominal",
+        "É uma dilatação estável, sem urgência"],
+    e: "É grave porque pode causar tamponamento, insuficiência aórtica aguda, isquemia miocárdica e má perfusão de órgãos." },
+  { b: 5, p: 19, q: "No tubo supracoronariano, o que é preservado?",
+    o: ["Valva aórtica, seios de Valsalva e óstios coronarianos",
+        "Nada: raiz, valva e aorta são trocadas",
+        "Só o arco aórtico",
+        "Só a valva; as coronárias são reimplantadas"],
+    e: "Troca-se só a aorta ascendente por um tubo de Dacron, acima dos óstios coronarianos." },
+  { b: 5, p: 20, q: "A operação de Bentall–De Bono:",
+    o: ["Substitui raiz, valva e aorta ascendente por um tubo valvado e reimplanta as coronárias",
+        "Substitui só a aorta ascendente, preservando a valva",
+        "Preserva a valva nativa dentro de um tubo de Dacron",
+        "Reconstrói o arco com stent na descendente"],
+    e: "O reimplante das coronárias (os 'botões') é o passo essencial. É mais complexa que o tubo supracoronariano." },
+  { b: 5, p: 21, q: "Qual é a principal diferença da operação de David em relação à de Bentall?",
+    o: ["Preserva a valva aórtica nativa, reimplantada dentro do enxerto, e geralmente dispensa anticoagulação",
+        "Não reimplanta as coronárias",
+        "Não usa CEC",
+        "Troca também a valva mitral"],
+    e: "As duas substituem a raiz e reimplantam as coronárias. Na David, a valva é do próprio paciente; indicada sobretudo em jovens e em doenças como a síndrome de Marfan, com valva adequada." },
+  { b: 5, p: 22, q: "Hemiarco × arco total: o que muda nos vasos supra-aórticos?",
+    o: ["No hemiarco costumam ser preservados; no arco total os três ramos são reconstruídos",
+        "Nos dois os ramos são sempre reconstruídos",
+        "No hemiarco os ramos são ligados e não reconstruídos",
+        "Nenhum dos dois envolve o arco"],
+    e: "O hemiarco troca a ascendente e a porção inicial do arco. O arco total substitui o arco inteiro, com enxerto ramificado para tronco braquiocefálico, carótida comum esquerda e subclávia esquerda." },
+  { b: 5, p: 24, q: "O que é o Frozen Elephant Trunk (FET)?",
+    o: ["Enxerto híbrido: Dacron suturado no arco + endoprótese (stent) dentro da aorta descendente, numa única operação",
+        "Um stent colocado por punção femoral, sem cirurgia aberta",
+        "Um tubo supracoronariano com valva",
+        "Uma ponte da aorta para a coronária"],
+    e: "Permite tratar o arco e a descendente de uma vez. Exige proteção cerebral e atenção ao risco de isquemia medular." },
+  { b: 5, p: 24, q: "No pós-operatório de FET, que avaliação ganha prioridade?",
+    o: ["Força e sensibilidade dos membros inferiores, por risco de isquemia medular",
+        "Teste de Allen",
+        "Sítio de punção transeptal",
+        "Escore de Wilkins"],
+    e: "Fraqueza, parestesias ou déficit motor em membros inferiores podem ser sinais de isquemia medular e precisam ser detectados cedo." },
+  { b: 5, p: 25, q: "Qual estratégia de proteção cerebral o atlas aponta como a mais comum hoje?",
+    o: ["Hipotermia moderada associada à perfusão cerebral anterógrada seletiva",
+        "Hipotermia profunda isolada, com tempo de parada maior",
+        "Nenhuma proteção, porque a parada é curta",
+        "Cardioplegia injetada nas carótidas"],
+    e: "A proteção é multimodal: hipotermia + perfusão seletiva + monitorização. O padrão antigo era hipotermia profunda com mais tempo de parada." },
+  { b: 5, p: 25, q: "Parada circulatória sistêmica significa, obrigatoriamente, cérebro sem fluxo?",
+    o: ["Não: a perfusão cerebral anterógrada seletiva pode manter sangue oxigenado chegando ao cérebro",
+        "Sim, sempre",
+        "Sim, mas só na hemiarco",
+        "Não, porque o coração continua batendo"],
+    e: "Uma cânula (ex.: artéria axilar direita) leva sangue ao cérebro enquanto o resto do corpo está em parada. O NIRS monitora a oxigenação cerebral (rSO₂)." },
+  { b: 5, p: 20, q: "Por que o controle pressórico é rigoroso no pós-operatório das cirurgias de aorta?",
+    o: ["Para evitar picos de pressão sobre o enxerto e as anastomoses",
+        "Porque a pressão alta melhora a perfusão do enxerto",
+        "Porque a hipotensão é o objetivo",
+        "Porque a PA não muda com o esforço"],
+    e: "Esforço eleva a PA. Por isso a progressão respeita as metas pressóricas definidas pela equipe." },
+
+  // ---------- Bloco 6: Ventrículo esquerdo ----------
+  { b: 6, p: 26, q: "Aneurisma verdadeiro × pseudoaneurisma do VE:",
+    o: ["Verdadeiro: parede de miocárdio cicatricial e colo largo. Pseudo: ruptura da parede contida pelo pericárdio, colo estreito",
+        "Verdadeiro: ruptura contida pelo pericárdio. Pseudo: parede cicatricial",
+        "Os dois têm o mesmo risco de ruptura",
+        "Pseudoaneurisma é o nome do aneurisma da aorta"],
+    e: "O verdadeiro tem baixo risco de ruptura na fase crônica. O pseudoaneurisma tem risco alto e é urgência cirúrgica." },
+  { b: 6, p: 26, q: "Qual é a localização típica do aneurisma verdadeiro do VE?",
+    o: ["Anterior e apical", "Inferior e posterior", "Septo membranoso", "Via de saída do VD"],
+    e: "O pseudoaneurisma costuma ser inferior, posterior ou lateral." },
+  { b: 6, p: 26, q: "Por que considerar risco de tromboembolismo no aneurisma verdadeiro do VE?",
+    o: ["Porque o trombo mural é frequente dentro do aneurisma", "Porque o colo é estreito", "Porque o pericárdio está aderido", "Porque a CEC sempre forma trombo"],
+    e: "Sangue parado na área que não contrai favorece trombo mural, com risco de embolia." },
+  { b: 6, p: 27, q: "Técnica de Cooley × endoventriculoplastia de Dor:",
+    o: ["Cooley: fechamento linear, sem patch. Dor: sutura circular + patch dentro do ventrículo",
+        "Cooley: patch intracavitário. Dor: fechamento linear",
+        "As duas usam o mesmo patch externo",
+        "Nenhuma das duas usa CEC"],
+    e: "O Dor busca restaurar a forma elíptica e o volume do VE. O fechamento linear de Cooley pode distorcer a geometria em aneurismas extensos." },
+  { b: 6, p: 28, q: "O que o estudo STICH mostrou sobre a restauração ventricular associada à CRM?",
+    o: ["Reduziu volumes ventriculares, mas não mostrou benefício clínico adicional universal em morte ou hospitalização",
+        "Reduziu a mortalidade pela metade",
+        "Aumentou a mortalidade e foi proibida",
+        "Regenerou o miocárdio infartado"],
+    e: "Melhorar a geometria não é a mesma coisa que melhorar o desfecho clínico para todos." },
+  { b: 6, p: 27, q: "A aneurismectomia e a endoventriculoplastia regeneram o miocárdio infartado?",
+    o: ["Não: podem melhorar a geometria e a função, mas não regeneram o músculo",
+        "Sim, o músculo volta a contrair após a cirurgia",
+        "Sim, quando se usa patch de pericárdio",
+        "Só se o paciente fizer reabilitação"],
+    e: "Por isso o paciente segue com função ventricular reduzida e risco de baixo débito e de arritmias ventriculares." },
+
+  // ---------- Bloco 7: Fisioterapia ----------
+  { b: 7, p: 29, q: "Quais destes procedimentos são feitos sem CEC?",
+    o: ["CRM sem CEC, valvoplastia mitral por balão e TEER (e, em geral, a TAVI)",
+        "Bentall e David",
+        "Ross e SAVR",
+        "Cooley e Dor"],
+    e: "Todas as cirurgias da aorta torácica, Ross, SAVR, comissurotomia, troca e plastia mitral, Cooley e Dor usam CEC." },
+  { b: 7, p: 29, q: "Qual destes procedimentos usa acesso ARTERIAL femoral?",
+    o: ["TAVI", "Valvoplastia mitral por balão", "TEER (MitraClip)", "Nenhum procedimento usa a artéria femoral"],
+    e: "A TAVI chega à valva aórtica pela artéria femoral. Balão mitral e TEER entram pela VEIA femoral e atravessam o septo interatrial." },
+  { b: 7, p: 30, q: "Antes de mobilizar, o que o atlas manda saber sobre a cirurgia realizada?",
+    o: ["Acesso, uso de CEC, tempo de pinçamento, estruturas corrigidas, enxertos/próteses e intercorrências",
+        "Só o nome da cirurgia",
+        "Só a fração de ejeção pré-operatória",
+        "Só o horário em que o paciente chegou à UTI"],
+    e: "É o passo 1 do roteiro: conhecer a cirurgia. Isso antecipa os riscos de cada paciente." },
+  { b: 7, p: 30, q: "Qual é a sequência de progressão da mobilização?",
+    o: ["Leito → sedestação → ortostatismo → deambulação",
+        "Deambulação → ortostatismo → sedestação → leito",
+        "Sedestação → deambulação → ortostatismo",
+        "Ortostatismo direto, para ganhar tempo"],
+    e: "Progressão gradual, conforme estabilidade, observando sintomas e respeitando dor e fadiga." },
+  { b: 7, p: 30, q: "Cirurgia de aorta ascendente e arco: qual é a prioridade de avaliação?",
+    o: ["Pressão arterial, perfusão e função neurológica", "Sítio de punção femoral", "Local de retirada da safena", "Teste de Allen"],
+    e: "Pela tabela do atlas: revascularização → esterno, respiratório e enxertos; valvar → ritmo e condução; TAVI/TEER → punção; aorta e arco → PA, perfusão e neurológico; FET → neurológico e medular; Cooley/Dor → baixo débito, função ventricular e arritmias." },
+  { b: 7, p: 30, q: "Cooley e Dor: o que priorizar na avaliação?",
+    o: ["Sinais de baixo débito, função ventricular e arritmias", "Força de membros inferiores por isquemia medular", "Sítio de punção femoral", "Teste de Allen"],
+    e: "São ventrículos já doentes, reconstruídos. A tolerância ao esforço tende a ser menor." },
+  { b: 7, p: 30, q: "Qual destes achados NÃO está entre os critérios do atlas para interromper ou modificar a mobilização?",
+    o: ["Dor incisional leve, controlada com analgesia", "Instabilidade hemodinâmica", "Dessaturação relevante", "Déficit neurológico novo"],
+    e: "Os critérios são: instabilidade hemodinâmica, arritmias importantes, dessaturação relevante, dor torácica suspeita, sinais de hipoperfusão e déficit neurológico novo. Dor incisional controlada pede ajuste, não parada." }
+];
+
+const CARDS = [
+  { b: 1, p: 1, f: "Esternotomia mediana", v: "Incisão na linha média e divisão do esterno, com fechamento por cerclagem com fios de aço. Para a fisio: dor, menor expansão torácica, menos mecânica ventilatória, mais atelectasia e proteção do esterno." },
+  { b: 1, p: 2, f: "Circulação extracorpórea (CEC)", v: "Retira o sangue venoso, oxigena, remove CO₂, controla a temperatura e devolve à aorta. Permite operar o coração parado. Custo: inflamação sistêmica e disfunção pulmonar, maior nas primeiras 48–72 h." },
+  { b: 1, p: 3, f: "Pinçamento aórtico + cardioplegia", v: "A pinça isola o coração da circulação. A cardioplegia fria, rica em potássio, para o coração em diástole e reduz o consumo de O₂. Tempos longos = mais disfunção e recuperação mais lenta." },
+  { b: 1, p: 4, f: "Saída da CEC (desmame)", v: "Reaquecimento → desaeração → retorno do ritmo → ventilação → redução do fluxo da máquina → protamina. Se o coração não sustenta: inotrópicos e balão intra-aórtico." },
+  { b: 2, p: 5, f: "Revascularização do miocárdio", v: "Cria um caminho novo para o sangue contornar a obstrução. A placa fica onde está. A anastomose distal é feita depois da lesão." },
+  { b: 2, p: 6, f: "Mamária × safena × radial", v: "Mamária: arterial, presa à subclávia, 1ª escolha para a DA, a mais durável. Safena: venosa, enxerto livre ligado à aorta, versátil, menos durável. Radial: arterial, boa durabilidade, exige teste de Allen." },
+  { b: 2, p: 7, f: "Com CEC × sem CEC (OPCAB)", v: "Com CEC: coração parado, cardioplegia. Sem CEC: coração batendo, estabilizador local. Esternotomia nas duas. Sem CEC não é superior para todos (ROOBY, CORONARY)." },
+  { b: 3, p: 8, f: "Estenose × insuficiência aórtica", v: "EAo: dificuldade para EJETAR, sístole, sobrecarga de pressão, hipertrofia concêntrica, angina-síncope-dispneia. IAo: dificuldade para CONTER, diástole, refluxo, dilatação e hipertrofia excêntrica." },
+  { b: 3, p: 9, f: "SAVR", v: "Troca valvar aórtica cirúrgica: CEC, pinçamento, cardioplegia, retirada da valva e prótese no anel. Mecânica: dura mais, anticoagulação contínua. Biológica: dura menos, menos trombose." },
+  { b: 3, p: 10, f: "TAVI", v: "Prótese biológica em estrutura metálica, levada por cateter (geralmente pela artéria femoral) e expandida DENTRO da valva doente. Sem esternotomia. Atenção: punção femoral e bloqueios de condução." },
+  { b: 3, p: 11, f: "Operação de Ross", v: "A valva pulmonar do paciente vai para a posição aórtica; a via de saída do VD recebe homoenxerto. Opção para jovens. Limites: cirurgia complexa, dilatação do autoenxerto, reintervenção." },
+  { b: 4, p: 12, f: "Estenose mitral reumática", v: "Comissuras fundidas, folhetos espessos, 'boca de peixe', área ≤ 1,5 cm² (normal 4–6). Dificulta o enchimento do VE na diástole: ↑ pressão no AE, congestão, hipertensão pulmonar, sobrecarga do VD." },
+  { b: 4, p: 13, f: "Valvoplastia mitral por balão", v: "Veia femoral → AD → punção transeptal → AE → balão de Inoue abre as comissuras. Sem CEC. Exige Wilkins ≤ 8, sem trombo no AE e IM no máximo leve." },
+  { b: 4, p: 14, f: "Comissurotomia mitral cirúrgica", v: "Abertura das comissuras sob visão direta, com CEC e atriotomia esquerda. Preserva a valva e trata cordas e papilares. Indicada quando o balão não serve (Wilkins > 8, trombo no AE)." },
+  { b: 4, p: 15, f: "Troca valvar mitral", v: "Prótese no anel mitral, por esternotomia ou minitoracotomia direita. Preservar as cordas ajuda a função do VE. FA e hipertensão pulmonar podem estar presentes no pós-operatório." },
+  { b: 4, p: 16, f: "Plastia mitral", v: "Repara sem trocar: ressecção do segmento prolapsado, neocordas de PTFE e anel de anuloplastia. Preferida na IM degenerativa quando o reparo deve durar." },
+  { b: 4, p: 17, f: "TEER (MitraClip)", v: "Clip borda a borda por veia femoral e punção transeptal, criando duplo orifício. Sem esternotomia, sem CEC, sem troca e sem anel. COAPT × MITRA-FR: a seleção do paciente importa." },
+  { b: 5, p: 18, f: "Aneurisma × dissecção", v: "Aneurisma = dilatação (≥ 1,5 vez o diâmetro esperado). Dissecção = ruptura da íntima, com lúmen verdadeiro e falso. Stanford A envolve a ascendente: emergência cirúrgica." },
+  { b: 5, p: 19, f: "Tubo supracoronariano", v: "Troca só a aorta ascendente por tubo de Dacron. Preserva valva aórtica, seios de Valsalva e óstios coronarianos. Usa CEC." },
+  { b: 5, p: 20, f: "Bentall–De Bono", v: "Troca raiz + valva + aorta ascendente por um tubo valvado (Dacron + prótese) e reimplanta as coronárias. Anticoagulação vitalícia se a prótese for mecânica." },
+  { b: 5, p: 21, f: "Operação de David", v: "Troca a raiz, mas reimplanta a valva aórtica NATIVA dentro do enxerto e reimplanta as coronárias. Geralmente sem anticoagulação. Jovens, Marfan, valva adequada." },
+  { b: 5, p: 22, f: "Hemiarco", v: "Troca a aorta ascendente e a porção inicial do arco, geralmente preservando os vasos supra-aórticos. Exige CEC, hipotermia e, muitas vezes, perfusão cerebral seletiva." },
+  { b: 5, p: 23, f: "Arco total", v: "Substitui todo o arco com enxerto ramificado e reconstrói tronco braquiocefálico, carótida comum esquerda e subclávia esquerda. Proteção cerebral é fundamental." },
+  { b: 5, p: 24, f: "Frozen Elephant Trunk (FET)", v: "Híbrido: Dacron suturado no arco + stent na aorta descendente, numa operação. Trata arco e descendente. Vigiar isquemia medular: força e sensibilidade de MMII." },
+  { b: 5, p: 25, f: "Proteção cerebral no arco", v: "Hipotermia (reduz o metabolismo) + perfusão cerebral anterógrada seletiva + NIRS (rSO₂). Parada sistêmica não significa, necessariamente, cérebro sem fluxo." },
+  { b: 6, p: 26, f: "Aneurisma verdadeiro × pseudoaneurisma do VE", v: "Verdadeiro: cicatriz fina, colo largo, anterior/apical, trombo mural, baixo risco de ruptura crônica. Pseudo: ruptura contida pelo pericárdio, colo estreito, alto risco: urgência." },
+  { b: 6, p: 27, f: "Aneurismectomia de Cooley", v: "Abre o aneurisma, retira trombo, resseca a cicatriz e fecha em linha reta com reforço de feltro. Sem patch. Pode distorcer a geometria em aneurismas extensos." },
+  { b: 6, p: 28, f: "Endoventriculoplastia de Dor", v: "Sutura circular + patch DENTRO do ventrículo, excluindo a cicatriz e restaurando forma e volume. Não regenera músculo. STICH: menos volume, sem benefício clínico universal." },
+  { b: 7, p: 29, f: "Como comparar as cirurgias", v: "Quatro perguntas: o que é corrigido? Qual é o acesso? Usa CEC? Qual estrutura anatômica muda? As respostas antecipam os cuidados fisioterapêuticos." },
+  { b: 7, p: 30, f: "Quando interromper a mobilização", v: "Instabilidade hemodinâmica, arritmias importantes, dessaturação relevante, dor torácica suspeita, sinais de hipoperfusão, déficit neurológico novo." }
+];
+
+const CASO = [
+  { t: "Leito 1 · CRM com CEC · POI 1", p: 4,
+    ctx: "Seu Raimundo, 61 anos, recebeu mamária para a DA e safena para a coronária direita. Antes de sentá-lo, você vê: PA 84/50 mmHg, extremidades frias, diurese de 15 mL/h nas últimas 3 horas e lactato subindo.",
+    q: "O que você faz?",
+    o: ["Não mobiliza agora e comunica a equipe: são sinais de baixo débito",
+        "Senta na poltrona para melhorar a ventilação",
+        "Faz uma caminhada curta, bem assistida",
+        "Inicia exercício resistido de membros superiores"],
+    e: "Hipotensão, extremidades frias, oligúria e lactato em alta formam o quadro de baixo débito. Instabilidade hemodinâmica e hipoperfusão são critérios para não progredir." },
+  { t: "Leito 1 · CRM com CEC · POI 2", p: 1,
+    ctx: "Estabilizado, Seu Raimundo tem secreção, mas não tosse porque 'dói o peito'. A ausculta mostra roncos em bases.",
+    q: "Qual é a melhor conduta?",
+    o: ["Ensinar a tosse com proteção do esterno (coxim ou abraço no tórax) e alinhar a analgesia com a equipe",
+        "Evitar tossir até a retirada dos pontos",
+        "Pedir que tussa com os braços abertos, em abdução máxima",
+        "Pular a tosse e manter só repouso no leito"],
+    e: "Esternotomia significa dor e proteção do esterno, mas a higiene brônquica não pode esperar: o risco de atelectasia e pneumonia é maior nas primeiras 48–72 h." },
+  { t: "Leito 2 · TAVI transfemoral · 6 h", p: 10,
+    ctx: "Dona Lúcia, 82 anos, saiu da hemodinâmica há 6 horas. A equipe libera mobilização.",
+    q: "O que você checa antes de sentá-la?",
+    o: ["Punção femoral (sangramento, hematoma, perfusão do membro) e ritmo, à procura de bloqueios",
+        "Precauções esternais e técnica de tosse com coxim",
+        "Teste de Allen",
+        "Escore de Wilkins"],
+    e: "Não houve esternotomia. Na TAVI, o risco está na punção e na condução (bloqueio AV). Em geral, mobiliza-se nas primeiras 24 h, conforme estabilidade." },
+  { t: "Leito 3 · Troca mitral (prótese mecânica) · POI 2", p: 15,
+    ctx: "Seu Valdir, 47 anos, operou por estenose mitral reumática. Sentado à beira do leito, o monitor mostra fibrilação atrial com FC 148 bpm, a PA cai e ele diz que está tonto.",
+    q: "O que você faz?",
+    o: ["Interrompe, deita com segurança, mantém monitorizado e comunica a equipe",
+        "Leva ao ortostatismo para 'treinar' o coração",
+        "Pede que respire mais rápido para compensar",
+        "Ignora: FA é comum depois de cirurgia mitral"],
+    e: "A FA é frequente no pós-operatório mitral, mas FA de alta resposta com hipotensão e sintoma é arritmia importante com instabilidade. Critério de parada." },
+  { t: "Leito 4 · Frozen Elephant Trunk · POI 1", p: 24,
+    ctx: "Dona Rita, 55 anos, operou dissecção extensa do arco e da aorta descendente.",
+    q: "Além do respiratório, o que entra obrigatoriamente na sua avaliação inicial?",
+    o: ["Força e sensibilidade dos membros inferiores, à procura de sinais de isquemia medular",
+        "Teste de Allen",
+        "Sítio de punção transeptal",
+        "Local de retirada da safena"],
+    e: "O stent na descendente traz risco de isquemia medular. Fraqueza, parestesias ou déficit motor em MMII precisam ser detectados cedo." },
+  { t: "Leito 5 · Hemiarco por dissecção tipo A · POI 2", p: 22,
+    ctx: "Seu Gilberto, 68 anos. Durante a sedestação você nota desvio da rima labial e fraqueza no braço esquerdo, que não estavam lá ontem.",
+    q: "Qual é a conduta?",
+    o: ["Interrompe, posiciona com segurança e aciona a equipe: déficit neurológico novo",
+        "Continua a sessão e reavalia amanhã",
+        "Estimula exercício ativo do braço fraco",
+        "Aumenta o O₂ e segue para o ortostatismo"],
+    e: "Nas cirurgias do arco, a vigilância neurológica é prioridade, e déficit neurológico novo é critério de parada." },
+  { t: "Leito 6 · Endoventriculoplastia de Dor + CRM · POI 3", p: 28,
+    ctx: "Seu Nilton, 63 anos, aneurisma do VE pós-infarto, FE reduzida. Está estável, sem drogas vasoativas.",
+    q: "Como você conduz a progressão?",
+    o: ["Gradual e guiada pela resposta hemodinâmica, vigiando arritmias ventriculares e sinais de baixo débito",
+        "Protocolo acelerado, igual ao de qualquer CRM",
+        "Só mobiliza depois da alta",
+        "Exercício resistido com carga alta para recuperar o músculo"],
+    e: "A cirurgia melhora a geometria, mas não regenera o miocárdio. A função ventricular continua reduzida." },
+  { t: "Leito 7 · TEER (MitraClip) · POI 1", p: 17,
+    ctx: "Dona Célia, 77 anos, pergunta se pode respirar fundo e tossir 'sem abrir o corte do peito'.",
+    q: "O que você responde e prioriza?",
+    o: ["Não houve corte no peito: ela pode fazer os exercícios respiratórios; o cuidado é com a punção femoral e a congestão residual",
+        "Precauções esternais por 8 semanas",
+        "Evitar tosse e respiração profunda",
+        "Teste de Allen antes de qualquer exercício"],
+    e: "O TEER entra pela veia femoral, sem esternotomia e sem CEC. Prioridades: sítio de punção, congestão residual, resposta hemodinâmica e capacidade funcional." },
+  { t: "Passagem de plantão", p: 30,
+    ctx: "Você vai passar os sete leitos para a colega da noite.",
+    q: "O que ela precisa saber de cada cirurgia antes de mobilizar?",
+    o: ["Acesso, uso de CEC, tempo de pinçamento, estruturas corrigidas, enxertos/próteses e intercorrências",
+        "Só o nome da cirurgia",
+        "Só a idade e o peso",
+        "Só a fração de ejeção pré-operatória"],
+    e: "O fisioterapeuta não precisa operar, mas precisa saber o que foi corrigido para reconhecer os riscos e conduzir a recuperação com segurança." }
+];
+
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const COR = ["", "var(--b1)", "var(--b2)", "var(--b3)", "var(--b4)", "var(--b5)", "var(--b6)", "var(--b7)"];
+  const nomeBloco = b => BLOCOS.find(x => x.id === b).nome;
+
+  // ---------- armazenamento local (pode faltar) ----------
+  const KEY = "cirurgias-em-jogo-v1";
+  let store = { known: {}, best: {} };
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) store = Object.assign(store, s); } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
+
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // ---------- navegação ----------
+  const screens = ["home", "play", "cards", "result"];
+  function show(id) {
+    screens.forEach(s => $(s).hidden = s !== id);
+    $("home-btn").hidden = id === "home";
+    window.scrollTo(0, 0);
+    if (id === "home") paintHome();
+  }
+  $("home-btn").addEventListener("click", () => show("home"));
+  $("r-home").addEventListener("click", () => show("home"));
+
+  // ---------- filtro por bloco ----------
+  let bloco = 0;
+  function paintChips() {
+    const box = $("chips"); box.innerHTML = "";
+    [{ id: 0, nome: "Todos" }].concat(BLOCOS).forEach(b => {
+      const c = document.createElement("button");
+      c.className = "chip"; c.setAttribute("aria-pressed", String(bloco === b.id));
+      if (b.id) { const i = document.createElement("i"); i.style.background = COR[b.id]; c.appendChild(i); }
+      c.appendChild(document.createTextNode(b.nome));
+      c.addEventListener("click", () => { bloco = b.id; paintChips(); paintHome(); });
+      box.appendChild(c);
+    });
+  }
+  const poolQ = () => Q.filter(q => bloco === 0 || q.b === bloco);
+  const poolC = () => CARDS.map((c, i) => i).filter(i => bloco === 0 || CARDS[i].b === bloco);
+  function paintHome() {
+    const n = Math.min(12, poolQ().length);
+    $("quiz-sub").textContent = n + " perguntas sorteadas de " + poolQ().length;
+    const k = poolC().filter(i => store.known[i]).length;
+    $("cards-sub").textContent = poolC().length + " cartões · " + k + " marcados como “já sei”";
+    $("best-quiz").textContent = store.best.quiz != null ? "melhor: " + store.best.quiz + "%" : "";
+    $("best-case").textContent = store.best.caso != null ? "melhor: " + store.best.caso + "%" : "";
+  }
+
+  // ---------- traçado de ECG ----------
+  function tracePath(log, n) {
+    const W = 600, w = W / Math.max(n, 1); let d = "M0 40";
+    log.forEach((ok, i) => {
+      const x = i * w, X = f => (x + f * w).toFixed(1);
+      if (ok) {
+        d += " L" + X(.18) + " 40 Q" + X(.24) + " 33 " + X(.30) + " 40 L" + X(.38) + " 40 L" + X(.41) + " 44 L" + X(.46) + " 5 L" + X(.51) + " 55 L" + X(.55) + " 40 L" + X(.62) + " 40 Q" + X(.72) + " 29 " + X(.84) + " 40 L" + X(1) + " 40";
+      } else {
+        d += " L" + X(.44) + " 40 L" + X(.48) + " 37.5 L" + X(.52) + " 42 L" + X(.56) + " 40 L" + X(1) + " 40";
+      }
+    });
+    return d;
+  }
+
+  // ---------- jogo (quiz e plantão) ----------
+  let game = null;
+  function startQuiz() {
+    const items = shuffle(poolQ()).slice(0, 12);
+    game = { kind: "quiz", items, i: 0, log: [], misses: [] };
+    show("play"); paintQ();
+  }
+  function startCase() {
+    game = { kind: "caso", items: CASO, i: 0, log: [], misses: [] };
+    show("play"); paintQ();
+  }
+  $("go-quiz").addEventListener("click", startQuiz);
+  $("go-case").addEventListener("click", startCase);
+
+  function paintQ() {
+    const it = game.items[game.i], n = game.items.length;
+    $("p-count").textContent = (game.kind === "quiz" ? "Pergunta " : "Decisão ") + (game.i + 1) + " de " + n;
+    $("p-score").textContent = game.log.filter(Boolean).length + " acerto(s)";
+    $("ecg").setAttribute("d", tracePath(game.log, n));
+    const tag = $("p-tag");
+    if (game.kind === "quiz") { tag.textContent = nomeBloco(it.b); tag.style.background = COR[it.b]; $("p-ctx").hidden = true; }
+    else { tag.textContent = it.t; tag.style.background = "var(--ok)"; $("p-ctx").hidden = false; $("p-ctx").textContent = it.ctx; }
+    $("p-q").textContent = it.q;
+    const box = $("p-opts"); box.innerHTML = "";
+    const order = shuffle(it.o.map((t, k) => k));
+    order.forEach((k, pos) => {
+      const b = document.createElement("button"); b.className = "opt"; b.dataset.k = k;
+      const l = document.createElement("span"); l.className = "l"; l.textContent = "ABCD"[pos];
+      const t = document.createElement("span"); t.textContent = it.o[k];
+      b.appendChild(l); b.appendChild(t);
+      b.addEventListener("click", () => answer(k));
+      box.appendChild(b);
+    });
+    $("p-fb").hidden = true; $("p-next").hidden = true;
+  }
+  function answer(k) {
+    const it = game.items[game.i], ok = k === 0;
+    game.log.push(ok); if (!ok) game.misses.push(it);
+    [...$("p-opts").children].forEach(b => {
+      b.disabled = true; const bk = +b.dataset.k;
+      if (bk === 0) b.classList.add("right"); else if (bk === k) b.classList.add("wrong"); else b.classList.add("dim");
+    });
+    const fb = $("p-fb"); fb.className = "fb " + (ok ? "ok" : "no"); fb.innerHTML = "";
+    const h = document.createElement("b"); h.textContent = ok ? "Isso." : "Não é essa.";
+    const e = document.createElement("span"); e.textContent = it.e;
+    const r = document.createElement("span"); r.className = "ref"; r.textContent = "Rever no atlas: prancha " + it.p;
+    fb.appendChild(h); fb.appendChild(e); fb.appendChild(r); fb.hidden = false;
+    $("ecg").setAttribute("d", tracePath(game.log, game.items.length));
+    $("p-score").textContent = game.log.filter(Boolean).length + " acerto(s)";
+    const last = game.i === game.items.length - 1;
+    $("p-next").textContent = last ? "Ver resultado" : "Próxima";
+    $("p-next").hidden = false;
+    $("p-next").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  $("p-next").addEventListener("click", () => {
+    if (game.i < game.items.length - 1) { game.i++; paintQ(); window.scrollTo(0, 0); } else finish();
+  });
+
+  function finish() {
+    const n = game.items.length, s = game.log.filter(Boolean).length, pct = Math.round(100 * s / n);
+    const key = game.kind === "quiz" ? "quiz" : "caso";
+    if (store.best[key] == null || pct > store.best[key]) { store.best[key] = pct; save(); }
+    $("r-kind").textContent = game.kind === "quiz" ? "Quiz rápido" : "Plantão na UTI";
+    $("r-score").innerHTML = s + "<small>/" + n + "</small>";
+    $("r-verdict").textContent =
+      pct >= 90 ? "Saiu da CEC em ritmo próprio, sem droga. Pronto para o plantão." :
+      pct >= 70 ? "Desmame bem-sucedido, com algum suporte. Revise os pontos abaixo." :
+      pct >= 50 ? "Ainda dependente de inotrópico. Volte aos cartões dos blocos em que errou." :
+      "Hora de voltar ao atlas antes de assumir o plantão.";
+    $("r-trace").setAttribute("d", tracePath(game.log, n));
+    const rv = $("r-review"); rv.innerHTML = "";
+    $("r-review-wrap").hidden = game.misses.length === 0;
+    game.misses.forEach(it => {
+      const li = document.createElement("li");
+      const b = document.createElement("b"); b.textContent = (it.t ? it.t + " — " : "") + it.q;
+      const a = document.createElement("span"); a.className = "ans"; a.textContent = "Resposta: " + it.o[0];
+      const r = document.createElement("span"); r.className = "ref"; r.style.cssText = "display:block;font-size:12.5px;color:var(--muted);margin-top:4px"; r.textContent = "Prancha " + it.p;
+      li.appendChild(b); li.appendChild(a); li.appendChild(r); rv.appendChild(li);
+    });
+    show("result");
+  }
+  $("r-again").addEventListener("click", () => { game.kind === "quiz" ? startQuiz() : startCase(); });
+
+  // ---------- cartões ----------
+  let deck = [], ci = 0;
+  function buildDeck(shuf) {
+    let idx = poolC();
+    if ($("c-only").checked) idx = idx.filter(i => !store.known[i]);
+    deck = shuf ? shuffle(idx) : idx; ci = 0; paintCard();
+  }
+  function paintCard() {
+    const flip = $("c-flip"); flip.classList.remove("on");
+    if (!deck.length) {
+      $("c-tag").textContent = "Pronto"; $("c-tag").style.background = "var(--ok)";
+      $("c-front").textContent = "Você marcou todos os cartões deste filtro como “já sei”.";
+      $("c-back").textContent = "Desmarque “Só os que ainda não sei” para rever tudo.";
+      $("c-ref").textContent = ""; $("c-known").textContent = ""; $("c-count").textContent = "0 cartões";
+      return;
+    }
+    const i = deck[ci], c = CARDS[i];
+    $("c-tag").textContent = nomeBloco(c.b); $("c-tag").style.background = COR[c.b];
+    $("c-front").textContent = c.f; $("c-back").textContent = c.v;
+    $("c-ref").textContent = "Prancha " + c.p + " do atlas";
+    $("c-known").textContent = store.known[i] ? " · ✓ já sei" : "";
+    $("c-count").textContent = "Cartão " + (ci + 1) + " de " + deck.length;
+  }
+  const flipIt = () => { if (deck.length) $("c-flip").classList.toggle("on"); };
+  $("c-flip").addEventListener("click", flipIt);
+  $("c-flip").addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); flipIt(); } });
+  const step = d => { if (!deck.length) return; ci = (ci + d + deck.length) % deck.length; paintCard(); };
+  $("c-prev").addEventListener("click", () => step(-1));
+  $("c-nextc").addEventListener("click", () => step(1));
+  $("c-shuf").addEventListener("click", () => buildDeck(true));
+  $("c-only").addEventListener("change", () => buildDeck(false));
+  $("c-ok").addEventListener("click", () => {
+    if (!deck.length) return; const i = deck[ci]; store.known[i] = true; save();
+    if ($("c-only").checked) { deck.splice(ci, 1); if (ci >= deck.length) ci = 0; paintCard(); } else step(1);
+  });
+  $("c-again").addEventListener("click", () => {
+    if (!deck.length) return; const i = deck[ci]; delete store.known[i]; save(); step(1);
+  });
+  $("go-cards").addEventListener("click", () => { show("cards"); buildDeck(false); });
+
+  paintChips(); paintHome();
+  if ("serviceWorker" in navigator) { window.addEventListener("load", () => { navigator.serviceWorker.register("sw.js").catch(() => {}); }); }
+})();
+</script>
+</body>
+</html>
